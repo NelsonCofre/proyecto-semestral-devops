@@ -1,0 +1,22 @@
+# Dependencias y build
+node_modules/
+target/
+dist/
+dist-ssr/
+.env
+*.local
+
+# IDE y sistema
+.idea/
+.vscode/
+*.log
+.DS_Store
+
+# Archivos locales de mentoría — no subir
+.devops-mentor-prompt.md
+.devops-ruta-completa.md
+FASE-*-DIAGNOSTICO.md
+INFORME-EFT-DEVOPS.md
+EFT_Instrucciones y Pauta EP_Encargo_Estudiante_2025.docx
+*.docx
+*.doc
