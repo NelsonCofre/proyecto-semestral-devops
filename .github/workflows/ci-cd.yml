@@ -1,20 +1,18 @@
-name: CI/CD EKS Deploy
+name: CI/CD Pipeline
 
 on:
   push:
     branches:
+      - develop
       - deploy
   workflow_dispatch:
 
 permissions:
   contents: read
 
-env:
-  AWS_REGION: us-east-1
-  EKS_CLUSTER_NAME: despachos-prod
-
 jobs:
-  build-test-deploy:
+  ci:
+    name: Test y build Docker
     runs-on: ubuntu-latest
 
     steps:
@@ -54,64 +52,15 @@ jobs:
           npm run lint
           npm run build
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Set image tags
-        id: meta
+      - name: Validar Dockerfiles (build sin push)
         run: |
-          echo "tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-          echo "version=v1.0.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          docker build -t frontend:ci ./frontend
+          docker build -t backend-ventas:ci ./backend-ventas
+          docker build -t backend-despachos:ci ./backend-despachos
 
-      - name: Build and push images
-        env:
-          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-          IMAGE_TAG: ${{ steps.meta.outputs.tag }}
-          VERSION: ${{ steps.meta.outputs.version }}
+      - name: Nota CD automatico
+        if: github.ref == 'refs/heads/deploy'
         run: |
-          if [ -z "$ECR_REGISTRY" ]; then
-            echo "Error: secret ECR_REGISTRY no configurado en GitHub"
-            exit 1
-          fi
-          for component in frontend backend-ventas backend-despachos; do
-            docker build -t "$ECR_REGISTRY/$component:$IMAGE_TAG" "./$component"
-            docker tag "$ECR_REGISTRY/$component:$IMAGE_TAG" "$ECR_REGISTRY/$component:latest"
-            docker tag "$ECR_REGISTRY/$component:$IMAGE_TAG" "$ECR_REGISTRY/$component:$VERSION"
-            docker push "$ECR_REGISTRY/$component:$IMAGE_TAG"
-            docker push "$ECR_REGISTRY/$component:latest"
-            docker push "$ECR_REGISTRY/$component:$VERSION"
-          done
-
-      - name: Update kubeconfig
-        run: |
-          aws eks update-kubeconfig \
-            --name "${{ env.EKS_CLUSTER_NAME }}" \
-            --region "${{ env.AWS_REGION }}"
-
-      - name: Deploy to EKS
-        env:
-          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-          IMAGE_TAG: ${{ steps.meta.outputs.tag }}
-        run: |
-          kubectl apply -f k8s/namespace.yaml
-          kubectl apply -f k8s/configmap.yaml
-
-          for file in k8s/backend-ventas/*.yaml k8s/backend-despachos/*.yaml k8s/frontend/*.yaml k8s/hpa/*.yaml; do
-            sed "s|ECR_REGISTRY|${ECR_REGISTRY}|g; s|IMAGE_TAG|${IMAGE_TAG}|g" "$file" | kubectl apply -f -
-          done
-
-          kubectl rollout status deployment/backend-ventas -n despachos-prod --timeout=300s
-          kubectl rollout status deployment/backend-despachos -n despachos-prod --timeout=300s
-          kubectl rollout status deployment/frontend -n despachos-prod --timeout=300s
-
-      - name: Verify deployment
-        run: |
-          kubectl get pods,svc,hpa -n despachos-prod
+          echo "CI completado en GitHub Actions."
+          echo "CD automatico: CodeBuild webhook en push a deploy (build -> ECR -> EKS)."
+          echo "Respaldo manual: bash scripts/deploy-cloudshell.sh en CloudShell."
