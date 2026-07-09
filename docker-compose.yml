@@ -1,0 +1,68 @@
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: despachos_db
+      MYSQL_USER: devuser
+      MYSQL_PASSWORD: devpass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend-ventas-service:
+    build: ./backend-ventas
+    ports:
+      - "8080:8080"
+    environment:
+      DB_ENDPOINT: mysql
+      DB_PORT: "3306"
+      DB_NAME: despachos_db
+      DB_USERNAME: devuser
+      DB_PASSWORD: devpass
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  backend-despachos-service:
+    build: ./backend-despachos
+    ports:
+      - "8081:8081"
+    environment:
+      DB_ENDPOINT: mysql
+      DB_PORT: "3306"
+      DB_NAME: despachos_db
+      DB_USERNAME: devuser
+      DB_PASSWORD: devpass
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend-ventas-service
+      - backend-despachos-service
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mysql_data:

@@ -1,0 +1,62 @@
+# Proyecto Semestral DevOps — Sistema de Despachos
+
+Monorepo con frontend React, APIs Spring Boot (Ventas y Despachos), despliegue en **Amazon EKS** con CI/CD via **GitHub Actions** y base de datos **Amazon RDS MySQL**.
+
+## Estructura
+
+```
+├── frontend/              React + Vite + Nginx
+├── backend-ventas/        Spring Boot API (puerto 8080)
+├── backend-despachos/     Spring Boot API (puerto 8081)
+├── k8s/                   Manifiestos Kubernetes
+├── .github/workflows/     Pipelines CI/CD (Fase 9)
+└── docker-compose.yml     Orquestación local (IE2)
+```
+
+## Ramas Git
+
+| Rama | Uso |
+|------|-----|
+| `develop` | Desarrollo e integración |
+| `deploy` | Dispara pipeline de despliegue a AWS |
+| `main` | Código estable en producción |
+
+## Variables de entorno (backends)
+
+| Variable | Descripción |
+|----------|-------------|
+| `DB_ENDPOINT` | Host RDS MySQL |
+| `DB_PORT` | Puerto (3306) |
+| `DB_NAME` | Nombre de la BD |
+| `DB_USERNAME` | Usuario RDS |
+| `DB_PASSWORD` | Contraseña RDS |
+
+## Docker
+
+Cada servicio tiene Dockerfile multietapa y `.dockerignore`.
+
+```bash
+# Solo referencia IE2 — la validación principal es en EKS
+docker compose up --build
+```
+
+- Frontend: http://localhost
+- API Ventas: http://localhost:8080/swagger-ui.html
+- API Despachos: http://localhost:8081/swagger-ui.html
+
+El frontend usa Nginx como reverse proxy hacia los backends (`/api/v1/ventas`, `/api/v1/despachos`).
+
+## Kubernetes (EKS)
+
+Ver instrucciones en [`k8s/README.md`](k8s/README.md).
+
+## Stack tecnológico
+
+- **Frontend:** React 18, Vite, Tailwind CSS, Nginx
+- **Backend:** Spring Boot 3.4, Java 17, MySQL
+- **Infra:** AWS EKS, ECR, RDS, CloudWatch
+- **CI/CD:** GitHub Actions
+
+## Autor
+
+Nelson Cofre — Duoc UC · ISY1101 Introducción a Herramientas DevOps

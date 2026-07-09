@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-despachos
+  namespace: despachos-prod
+  labels:
+    app: backend-despachos
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend-despachos
+  template:
+    metadata:
+      labels:
+        app: backend-despachos
+    spec:
+      containers:
+        - name: backend-despachos
+          image: ECR_REGISTRY/backend-despachos:IMAGE_TAG
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8081
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: db-credentials
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 768Mi
+          livenessProbe:
+            httpGet:
+              path: /swagger-ui.html
+              port: 8081
+            initialDelaySeconds: 90
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /swagger-ui.html
+              port: 8081
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            timeoutSeconds: 5

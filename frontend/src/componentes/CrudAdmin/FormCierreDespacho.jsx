@@ -1,6 +1,7 @@
 import { useForm } from "react-hook-form";
 import Swal from "sweetalert2";
 import axios from "axios";
+import { API_DESPACHOS_URL, jsonHeaders } from "../../config/api";
 
 export const FormCierreDespacho = ({ despacho, onClose }) => {
   const { register, handleSubmit } = useForm();
@@ -16,14 +17,9 @@ export const FormCierreDespacho = ({ despacho, onClose }) => {
 
     try {
       await axios.put(
-        `http://192.168.320/api/v1/despachos/${despacho.idDespacho}`,
+        `${API_DESPACHOS_URL}/${despacho.idDespacho}`,
         jsonData,
-        {
-          headers:{
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-      }
-        }
+        { headers: jsonHeaders }
       );
       Swal.fire({
         title: "Despacho modificado 🛻!",
