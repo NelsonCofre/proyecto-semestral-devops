@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+env:
+  AWS_REGION: us-east-1
+  EKS_CLUSTER_NAME: despachos-prod
+
 jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
@@ -56,7 +60,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
@@ -73,6 +77,10 @@ jobs:
           IMAGE_TAG: ${{ steps.meta.outputs.tag }}
           VERSION: ${{ steps.meta.outputs.version }}
         run: |
+          if [ -z "$ECR_REGISTRY" ]; then
+            echo "Error: secret ECR_REGISTRY no configurado en GitHub"
+            exit 1
+          fi
           for component in frontend backend-ventas backend-despachos; do
             docker build -t "$ECR_REGISTRY/$component:$IMAGE_TAG" "./$component"
             docker tag "$ECR_REGISTRY/$component:$IMAGE_TAG" "$ECR_REGISTRY/$component:latest"
@@ -85,8 +93,8 @@ jobs:
       - name: Update kubeconfig
         run: |
           aws eks update-kubeconfig \
-            --name "${{ secrets.EKS_CLUSTER_NAME }}" \
-            --region "${{ secrets.AWS_REGION }}"
+            --name "${{ env.EKS_CLUSTER_NAME }}" \
+            --region "${{ env.AWS_REGION }}"
 
       - name: Deploy to EKS
         env:
