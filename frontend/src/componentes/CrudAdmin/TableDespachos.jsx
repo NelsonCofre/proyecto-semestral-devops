@@ -2,18 +2,14 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { Modal } from "./Modal";
 import { FormCierreDespacho } from "./FormCierreDespacho";
+import { API_DESPACHOS_URL, jsonHeaders } from "../../config/api";
 
 export const TableDespachos = () => {
   const [despachos, setDespachos] = useState([]);
 
   const despacho = async () => {
     await axios
-      .get("http://192.168.3.20/api/v1/despachos", {
-        headers:{
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-        }
-      })
+      .get(API_DESPACHOS_URL, { headers: jsonHeaders })
       .then((response) => {
         console.log(response.data);
         setDespachos(response.data);
@@ -68,7 +64,7 @@ export const TableDespachos = () => {
                       {despacho.patenteCamion}
                     </td>
                     <td className="pr-10 py-10  items-center">
-                      {despacho.entregado
+                      {despacho.despachado
                         ? "Despacho entregado"
                         : "Despacho pendiente"}
                     </td>

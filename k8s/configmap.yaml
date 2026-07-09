@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: despachos-prod
+data:
+  DB_PORT: "3306"
+  DB_NAME: despachos_db

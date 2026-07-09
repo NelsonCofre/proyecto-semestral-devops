@@ -1,6 +1,7 @@
 import { useForm } from "react-hook-form";
 import Swal from "sweetalert2";
 import axios from "axios";
+import { API_VENTAS_URL, API_DESPACHOS_URL, jsonHeaders } from "../../config/api";
 
 export const FormDespacho = ({ venta, onClose }) => {
   const { register, handleSubmit } = useForm();
@@ -11,7 +12,7 @@ export const FormDespacho = ({ venta, onClose }) => {
       fechaDespacho: data.fechaDespacho,
       patenteCamion: data.patenteCamion,
       intento: 0,
-      entregado: false,
+      despachado: false,
       idCompra: venta.idVenta,
       direccionCompra: venta.direccionCompra,
       valorCompra: venta.valorCompra,
@@ -25,21 +26,11 @@ export const FormDespacho = ({ venta, onClose }) => {
 
     try {
       await axios.put(
-        `http://192.168.30/api/v1/ventas/${venta.idVenta}`,
+        `${API_VENTAS_URL}/${venta.idVenta}`,
         jsonDataSales,
-        {
-          headers:{
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-      }
-        }
+        { headers: jsonHeaders }
       );
-      await axios.post("http://192.168.320/api/v1/despachos", jsonData, {
-        headers:{
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-    }
-      });
+      await axios.post(API_DESPACHOS_URL, jsonData, { headers: jsonHeaders });
       Swal.fire({
         title: "Despacho registrado 🛻!",
         text: "El despacho ha sido generado con éxito en la base de datos",
