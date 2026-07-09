@@ -1,0 +1,71 @@
+version: 0.2
+
+env:
+  variables:
+    AWS_DEFAULT_REGION: us-east-1
+    EKS_CLUSTER_NAME: despachos-prod
+    K8S_NAMESPACE: despachos-prod
+
+phases:
+  install:
+    commands:
+      - echo "Instalando kubectl..."
+      - curl -sLO "https://dl.k8s.io/release/$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+      - chmod +x kubectl
+      - mv kubectl /usr/local/bin/
+      - kubectl version --client
+
+  pre_build:
+    commands:
+      - echo "Login ECR..."
+      - ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+      - ECR_REGISTRY=$ACCOUNT.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - COMMIT_SHA=${CODEBUILD_RESOLVED_SOURCE_VERSION:-manual}
+      - IMAGE_TAG=sha-${COMMIT_SHA:0:7}
+      - VERSION=v1.0.${CODEBUILD_BUILD_NUMBER}
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+      - |
+        cat > /tmp/build.env <<EOF
+        ECR_REGISTRY=$ECR_REGISTRY
+        IMAGE_TAG=$IMAGE_TAG
+        VERSION=$VERSION
+        EOF
+
+  build:
+    commands:
+      - source /tmp/build.env
+      - docker build -t $ECR_REGISTRY/frontend:$IMAGE_TAG ./frontend
+      - docker build -t $ECR_REGISTRY/backend-ventas:$IMAGE_TAG ./backend-ventas
+      - docker build -t $ECR_REGISTRY/backend-despachos:$IMAGE_TAG ./backend-despachos
+      - docker tag $ECR_REGISTRY/frontend:$IMAGE_TAG $ECR_REGISTRY/frontend:latest
+      - docker tag $ECR_REGISTRY/frontend:$IMAGE_TAG $ECR_REGISTRY/frontend:$VERSION
+      - docker tag $ECR_REGISTRY/backend-ventas:$IMAGE_TAG $ECR_REGISTRY/backend-ventas:latest
+      - docker tag $ECR_REGISTRY/backend-ventas:$IMAGE_TAG $ECR_REGISTRY/backend-ventas:$VERSION
+      - docker tag $ECR_REGISTRY/backend-despachos:$IMAGE_TAG $ECR_REGISTRY/backend-despachos:latest
+      - docker tag $ECR_REGISTRY/backend-despachos:$IMAGE_TAG $ECR_REGISTRY/backend-despachos:$VERSION
+
+  post_build:
+    commands:
+      - source /tmp/build.env
+      - docker push $ECR_REGISTRY/frontend:$IMAGE_TAG
+      - docker push $ECR_REGISTRY/frontend:latest
+      - docker push $ECR_REGISTRY/frontend:$VERSION
+      - docker push $ECR_REGISTRY/backend-ventas:$IMAGE_TAG
+      - docker push $ECR_REGISTRY/backend-ventas:latest
+      - docker push $ECR_REGISTRY/backend-ventas:$VERSION
+      - docker push $ECR_REGISTRY/backend-despachos:$IMAGE_TAG
+      - docker push $ECR_REGISTRY/backend-despachos:latest
+      - docker push $ECR_REGISTRY/backend-despachos:$VERSION
+      - echo "Imagenes publicadas - tag $IMAGE_TAG version $VERSION"
+      - echo "Desplegando en EKS..."
+      - aws eks update-kubeconfig --region $AWS_DEFAULT_REGION --name $EKS_CLUSTER_NAME
+      - kubectl apply -f k8s/namespace.yaml
+      - kubectl apply -f k8s/configmap.yaml
+      - |
+        for file in k8s/backend-ventas/*.yaml k8s/backend-despachos/*.yaml k8s/frontend/*.yaml k8s/hpa/*.yaml; do
+          sed "s|ECR_REGISTRY|${ECR_REGISTRY}|g; s|IMAGE_TAG|${IMAGE_TAG}|g" "$file" | kubectl apply -f -
+        done
+      - kubectl rollout status deployment/backend-ventas -n $K8S_NAMESPACE --timeout=300s
+      - kubectl rollout status deployment/backend-despachos -n $K8S_NAMESPACE --timeout=300s
+      - kubectl rollout status deployment/frontend -n $K8S_NAMESPACE --timeout=300s
+      - kubectl get pods,svc,hpa -n $K8S_NAMESPACE

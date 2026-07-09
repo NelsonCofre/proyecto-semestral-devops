@@ -46,6 +46,38 @@ docker compose up --build
 
 El frontend usa Nginx como reverse proxy hacia los backends (`/api/v1/ventas`, `/api/v1/despachos`).
 
+## CI/CD (flujo automatico)
+
+El Learner Lab AWS Academy bloquea ECR desde GitHub Actions. El pipeline queda asi:
+
+```
+push develop  ->  GitHub Actions (CI: tests + build Docker)
+push deploy   ->  GitHub Actions (CI) + CodeBuild webhook (CD: ECR + EKS)
+```
+
+### Configuracion inicial CodeBuild (una vez)
+
+1. **CodeBuild** -> **Create build project**
+   - Name: `despachos-build`
+   - Source: **GitHub** conectado -> repo `proyecto-semestral-devops`, branch `deploy`
+   - Webhook: **PUSH**, filtro branch `^deploy$`
+   - Environment: Amazon Linux Standard, **Privileged** activado
+   - Buildspec: `buildspec.yml`
+2. **EKS** -> cluster `despachos-prod` -> **Access** -> agregar rol de servicio de CodeBuild con permisos de cluster admin
+3. Secret `db-credentials` en namespace `despachos-prod` (ver `k8s/README.md`)
+
+### Uso diario
+
+```bash
+# develop: desarrollo
+git push origin develop
+
+# deploy: redeploy automatico en AWS
+git checkout deploy && git merge develop && git push origin deploy
+```
+
+Respaldo manual si el webhook no dispara: `bash scripts/deploy-cloudshell.sh`
+
 ## Kubernetes (EKS)
 
 Ver instrucciones en [`k8s/README.md`](k8s/README.md).
